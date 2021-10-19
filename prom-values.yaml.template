@@ -1,0 +1,89 @@
+grafana:
+  adminPassword: ${GRAFANA_PASS}
+  defaultDashboardsTimezone: America/Chicago
+  ingress:
+    enabled: true
+    hosts:
+      - localhost
+    path: /
+    ingressClassName: nginx
+
+prometheus:
+  ingress:
+    enabled: true
+    hosts:
+      - localhost
+    path: /prom
+    ingressClassName: nginx
+  admissionWebhooks:
+    enabled: false
+    patch:
+      enabled: false
+  tlsProxy.enabled: false
+  prometheusSpec:
+    routePrefix: /prom
+    scrapeInterval: "30s"
+    additionalScrapeConfigs:
+      - job_name: ${APP}-pods
+        metrics_path: /service/metrics
+        scrape_interval: 60s
+        kubernetes_sd_configs:
+          - role: pod
+            namespaces:
+              names:
+                - ${APP}
+            selectors:
+              - role: "pod"
+                label: "app=${APP}-pod"
+      - job_name: ${APP}-services
+        metrics_path: /service/metrics
+        scrape_interval: 60s
+        kubernetes_sd_configs:
+          - role: service
+            namespaces:
+              names:
+                - ${APP}
+            selectors:
+              - role: "service"
+                label: "app=${APP}"
+
+alertmanager:
+  ingress:
+    enabled: true
+    hosts:
+      - localhost
+    path: /alert
+    ingressClassName: nginx
+  admissionWebhooks:
+    enabled: false
+    patch:
+      enabled: false
+  tlsProxy.enabled: false
+  alertmanagerSpec:
+    routePrefix: /alert
+
+# https://github.com/lensapp/lens/issues/180
+# the entries below make this prometheus instance available for Lens
+# Since we are using a route prefix, we need to consider that for the Lens Settings.
+# Use this: prometheus operator, path monitoring/prom-kube-prometheus-stack-prometheus:9090/prom
+node-exporter:
+  serviceMonitor:
+    relabelings:
+      - action: replace
+        regex: (.*)
+        replacement: $1
+        sourceLabels:
+          - __meta_kubernetes_pod_node_name
+        targetLabel: kubernetes_node
+
+kubelet:
+  serviceMonitor:
+    metricRelabelings:
+      - action: replace
+        sourceLabels:
+          - node
+        targetLabel: instance
+
+#kube-state-metrics:
+#  serviceMonitor:
+#    honorLabels: true
