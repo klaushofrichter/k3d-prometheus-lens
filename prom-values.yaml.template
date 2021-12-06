@@ -66,15 +66,29 @@ alertmanager:
 # the entries below make this prometheus instance available for Lens
 # Since we are using a route prefix, we need to consider that for the Lens Settings.
 # Use this: prometheus operator, path monitoring/prom-kube-prometheus-stack-prometheus:9090/prom
-node-exporter:
+# UPDATE Dec 2021: Lens 5.3 requires a different service monitor config for node exporter.
+# see https://github.com/lensapp/lens/pull/3653#issuecomment-933921269
+
+nodeExporter:
+  enabled: true
   serviceMonitor:
     relabelings:
-      - action: replace
-        regex: (.*)
-        replacement: $1
+      - regex: (.+)
         sourceLabels:
-          - __meta_kubernetes_pod_node_name
-        targetLabel: kubernetes_node
+          - __meta_kubernetes_endpoint_node_name
+        targetLabel: node
+
+# Lens pre-5.3 node-exporter config below
+#node-exporter:
+#  serviceMonitor:
+#    relabelings:
+#      - action: replace
+#        regex: (.*)
+#        replacement: $1
+#        sourceLabels:
+#          - __meta_kubernetes_pod_node_name
+#        targetLabel: kubernetes_node
+#
 
 kubelet:
   serviceMonitor:
@@ -84,6 +98,3 @@ kubelet:
           - node
         targetLabel: instance
 
-#kube-state-metrics:
-#  serviceMonitor:
-#    honorLabels: true
